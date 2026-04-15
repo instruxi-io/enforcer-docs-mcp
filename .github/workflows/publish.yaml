@@ -69,8 +69,9 @@ jobs:
         id: pack
         run: |
           TARBALL=$(npm pack --json | node -e "let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{const o=JSON.parse(d); console.log(o[0].filename);})")
+          cp "$TARBALL" enforcer-docs-mcp.tgz
           echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
-          ls -lh "$TARBALL"
+          ls -lh "$TARBALL" enforcer-docs-mcp.tgz
 
       - name: Commit version bump + swagger snapshot
         run: |
@@ -102,5 +103,6 @@ jobs:
             ```
           files: |
             ${{ steps.pack.outputs.tarball }}
+            enforcer-docs-mcp.tgz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
