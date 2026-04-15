@@ -1,0 +1,51 @@
+{
+  "name": "@instruxi-io/enforcer-docs-mcp",
+  "version": "0.1.0",
+  "description": "MCP server exposing the Enforcer API OpenAPI spec as tools for AI agents.",
+  "type": "module",
+  "bin": {
+    "enforcer-docs-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "swagger.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/instruxi-io/enforcer-docs-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "enforcer",
+    "openapi",
+    "swagger",
+    "ai-agent"
+  ],
+  "author": "Instruxi",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

@@ -1,0 +1,96 @@
+name: Publish
+
+on:
+  repository_dispatch:
+    types: [enforcer-swagger-updated]
+  workflow_dispatch:
+    inputs:
+      swagger_url:
+        description: "Swagger URL to snapshot (defaults to prod)"
+        required: false
+        default: "https://enforcer-v2-prod.instruxi.dev/swagger/doc.json"
+      version:
+        description: "Version override (e.g. 0.2.0). If empty, auto-bumps patch."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@instruxi-io"
+
+      - name: Snapshot swagger
+        env:
+          SWAGGER_URL: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'https://enforcer-v2-prod.instruxi.dev/swagger/doc.json' }}
+        run: |
+          echo "Fetching $SWAGGER_URL"
+          curl -fSL --max-time 30 "$SWAGGER_URL" -o swagger.json
+          python3 -c "import json; d=json.load(open('swagger.json')); print('paths:', len(d['paths']), 'defs:', len(d.get('definitions',{})))"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            CURRENT=$(node -p "require('./package.json').version")
+            VERSION=$(node -e "const [M,m,p] = '$CURRENT'.split('.').map(Number); console.log(\`\${M}.\${m}.\${p+1}\`)")
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          node -e "const p=require('./package.json'); p.version='$VERSION'; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2) + '\n')"
+          echo "Version: $VERSION"
+
+      - name: Install & build
+        run: |
+          npm install
+          npm run build
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm publish
+
+      - name: Commit version bump + swagger snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json swagger.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: release v${{ steps.version.outputs.version }} (swagger snapshot)"
+            git push
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            Automated release triggered by enforcer swagger update.
+
+            - Source: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'prod' }}
+            - Commit (enforcer): ${{ github.event.client_payload.sha || 'manual' }}
+
+            Install:
+            ```
+            npx @instruxi-io/enforcer-docs-mcp
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
