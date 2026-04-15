@@ -8,7 +8,7 @@ on:
       swagger_url:
         description: "Swagger URL to snapshot (defaults to prod)"
         required: false
-        default: "https://enforcer-v2-prod.instruxi.dev/swagger/doc.json"
+        default: "https://enforcer-v2-dev.instruxi.dev/swagger/doc.json"
       version:
         description: "Version override (e.g. 0.2.0). If empty, auto-bumps patch."
         required: false
@@ -36,7 +36,7 @@ jobs:
 
       - name: Snapshot swagger
         env:
-          SWAGGER_URL: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'https://enforcer-v2-prod.instruxi.dev/swagger/doc.json' }}
+          SWAGGER_URL: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'https://enforcer-v2-dev.instruxi.dev/swagger/doc.json' }}
         run: |
           echo "Fetching $SWAGGER_URL"
           curl -fSL --max-time 30 "$SWAGGER_URL" -o swagger.json

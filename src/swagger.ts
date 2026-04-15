@@ -29,7 +29,7 @@ export interface Operation {
 
 export type Schema = Record<string, any>;
 
-const DEFAULT_SWAGGER_URL = "https://enforcer-v2-prod.instruxi.dev/swagger/doc.json";
+const DEFAULT_SWAGGER_URL = "https://enforcer-v2-dev.instruxi.dev/swagger/doc.json";
 const FETCH_TIMEOUT_MS = 10_000;
 
 let cached: SwaggerSpec | null = null;

@@ -16,7 +16,7 @@
         },
         "version": "2.0.0"
     },
-    "host": "enforcer-v2-prod.instruxi.dev",
+    "host": "enforcer-v2-dev.instruxi.dev",
     "basePath": "/",
     "paths": {
         "/.well-known/jwks.json": {

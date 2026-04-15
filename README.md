@@ -1,6 +1,6 @@
 # enforcer-docs-mcp
 
-MCP server that lets AI agents discover and understand the [Enforcer API](https://enforcer-v2-prod.instruxi.dev/swagger/index.html).
+MCP server that lets AI agents discover and understand the [Enforcer API](https://enforcer-v2-dev.instruxi.dev/swagger/index.html).
 
 Exposes the live OpenAPI spec as a set of MCP tools with progressive disclosure — agents can list endpoints, drill into specifics, and resolve schemas without loading the entire 950KB+ spec into their context.
 
@@ -45,7 +45,7 @@ npx @instruxi-io/enforcer-docs-mcp
 
 | Var | Default | Purpose |
 |-----|---------|---------|
-| `ENFORCER_SWAGGER_URL` | `https://enforcer-v2-prod.instruxi.dev/swagger/doc.json` | Live spec URL to fetch. |
+| `ENFORCER_SWAGGER_URL` | `https://enforcer-v2-dev.instruxi.dev/swagger/doc.json` | Live spec URL to fetch. |
 | `ENFORCER_USE_EMBEDDED` | unset | Set to `1` to skip the live fetch and use the bundled snapshot only. |
 
 The server fetches the spec on first use. If the fetch fails, it falls back to the embedded `swagger.json` (refreshed on every publish).

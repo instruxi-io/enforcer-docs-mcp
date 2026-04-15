@@ -160,7 +160,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     }
 
     case "get_spec_info": {
-      const source = process.env.ENFORCER_USE_EMBEDDED === "1" ? "embedded" : process.env.ENFORCER_SWAGGER_URL || "https://enforcer-v2-prod.instruxi.dev/swagger/doc.json";
+      const source = process.env.ENFORCER_USE_EMBEDDED === "1" ? "embedded" : process.env.ENFORCER_SWAGGER_URL || "https://enforcer-v2-dev.instruxi.dev/swagger/doc.json";
       return {
         content: [
           {
