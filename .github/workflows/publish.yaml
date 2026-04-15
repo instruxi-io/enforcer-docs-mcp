@@ -65,6 +65,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm publish
 
+      - name: Pack tarball for release asset
+        id: pack
+        run: |
+          TARBALL=$(npm pack --json | node -e "let d=''; process.stdin.on('data',c=>d+=c); process.stdin.on('end',()=>{const o=JSON.parse(d); console.log(o[0].filename);})")
+          echo "tarball=$TARBALL" >> "$GITHUB_OUTPUT"
+          ls -lh "$TARBALL"
+
       - name: Commit version bump + swagger snapshot
         run: |
           git config user.name "github-actions[bot]"
@@ -85,12 +92,15 @@ jobs:
           body: |
             Automated release triggered by enforcer swagger update.
 
-            - Source: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'prod' }}
+            - Source: ${{ github.event.client_payload.swagger_url || github.event.inputs.swagger_url || 'dev' }}
             - Commit (enforcer): ${{ github.event.client_payload.sha || 'manual' }}
 
-            Install:
+            ## Install (no auth required)
+
+            ```bash
+            npx -y https://github.com/instruxi-io/enforcer-docs-mcp/releases/download/v${{ steps.version.outputs.version }}/instruxi-io-enforcer-docs-mcp-${{ steps.version.outputs.version }}.tgz
             ```
-            npx @instruxi-io/enforcer-docs-mcp
-            ```
+          files: |
+            ${{ steps.pack.outputs.tarball }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
