@@ -1,6 +1,6 @@
 {
   "name": "@instruxi-io/enforcer-docs-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server exposing the Enforcer API OpenAPI spec as tools for AI agents.",
   "type": "module",
   "bin": {
