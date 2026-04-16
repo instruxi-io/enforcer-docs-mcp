@@ -131,6 +131,35 @@ If the live fetch fails, the server falls back to the bundled `swagger.json` sna
 
 ---
 
+## Claude Code Skills
+
+The repo also ships [Claude Code skills](https://github.com/instruxi-io/enforcer-docs-mcp/tree/main/skills) — slash commands that teach agents the concepts, workflows, and patterns behind each Enforcer domain. Skills explain the *why and how*; the MCP server provides the *what* (live endpoints and schemas).
+
+Install any skill with a one-liner (no auth required):
+
+```bash
+# Install all skills
+for skill in enforcer enforcer-auth enforcer-kv enforcer-files enforcer-admin enforcer-wallet enforcer-me enforcer-message-bus; do
+  curl -sL -o ~/.claude/commands/$skill.md \
+    https://raw.githubusercontent.com/instruxi-io/enforcer-docs-mcp/main/skills/$skill.md
+done
+```
+
+Then use `/enforcer`, `/enforcer-auth`, `/enforcer-kv`, etc. in Claude Code.
+
+| Skill | Domain |
+|-------|--------|
+| `/enforcer` | Getting started — multi-tenancy, roles, auth overview, SDK + MCP setup |
+| `/enforcer-auth` | Authentication flows, OPA authorization, verification, terms |
+| `/enforcer-kv` | Key-value store (HTTP + gRPC) |
+| `/enforcer-files` | Object storage + resource sharing |
+| `/enforcer-admin` | Tenant setup, connections, user/group/role management |
+| `/enforcer-wallet` | Wallet lifecycle, signing, backup/restore |
+| `/enforcer-me` | User profile, contacts, invites, self-service groups |
+| `/enforcer-message-bus` | Kafka messaging, audit, retry |
+
+---
+
 ## Release cadence
 
 Every merge to [`instruxi-io/enforcer`](https://github.com/instruxi-io/enforcer) main dispatches a rebuild here: the workflow snapshots the latest swagger from the configured URL, bumps the patch version, and publishes a new release + GitHub Packages version. Using `/releases/latest/download/...` in your config keeps you on the newest spec without pinning.
