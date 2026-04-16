@@ -133,7 +133,7 @@ If the live fetch fails, the server falls back to the bundled `swagger.json` sna
 
 ## Claude Code Skills
 
-The repo also ships [Claude Code skills](https://github.com/instruxi-io/enforcer-docs-mcp/tree/main/skills) — slash commands that teach agents the concepts, workflows, and patterns behind each Enforcer domain. Skills explain the *why and how*; the MCP server provides the *what* (live endpoints and schemas).
+The repo also ships [Claude Code skills](https://github.com/instruxi-io/enforcer-skills) — slash commands that teach agents the concepts, workflows, and patterns behind each Enforcer domain. Skills explain the *why and how*; the MCP server provides the *what* (live endpoints and schemas).
 
 Install any skill with a one-liner (no auth required):
 
@@ -141,7 +141,7 @@ Install any skill with a one-liner (no auth required):
 # Install all skills
 for skill in enforcer enforcer-auth enforcer-kv enforcer-files enforcer-admin enforcer-wallet enforcer-me enforcer-message-bus; do
   curl -sL -o ~/.claude/commands/$skill.md \
-    https://raw.githubusercontent.com/instruxi-io/enforcer-docs-mcp/main/skills/$skill.md
+    https://raw.githubusercontent.com/instruxi-io/enforcer-skills/main/$skill/SKILL.md
 done
 ```
 
