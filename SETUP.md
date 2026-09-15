@@ -4,8 +4,9 @@ Instructions for setting up Enforcer, an identity and authorization platform.
 Every call below has been run against the live sandbox. Responses are real,
 trimmed to the fields that matter.
 
-You will finish with: an account, an API key your agent can use, and a real
-authorization decision you can watch change.
+You will finish with: an account, an API key your agent can use, a real
+authorization decision you can watch change, and a rule of your own that
+changes it. None of it needs an admin role.
 
 ---
 
@@ -44,8 +45,9 @@ GET https://api.instruxi.dev/api/v1/enforcer/auth/me
 Authorization: Bearer $TOKEN
 ```
 
-Note your `role.slug`. A new signup in the sandbox is `user`, and that matters
-at step 6.
+Note your `role.slug` and your `account_id`. A new signup in the sandbox is
+`user`, which matters at step 6, and the account id names your own policy at
+step 8.
 
 ## Step 4 — Mint an API key for your agent
 
@@ -72,6 +74,12 @@ It accepts either an `X-API-Key` header or OAuth 2.1. A client that speaks
 OAuth needs no key at all: the `401` carries `WWW-Authenticate` naming the
 resource metadata, which names the authorization server, and the client takes
 it from there.
+
+Over OAuth the MCP server asks for two scopes. `enforcer:read` is reads.
+`policy:self` lets the agent write rules on **your own account** (step 8) and
+nothing else, which is why it is safe to grant alongside a read-only consent.
+A client registered before these scopes existed keeps its old ones; remove the
+server and add it again to be asked for both.
 
 ## Step 6 — Know the policy that governs you
 
@@ -123,6 +131,65 @@ reason is the policy's own words:
 As a `tenant_admin` the same write stays `{"allow":true,"reason":"tenant policy"}`.
 Same question, same resource, different authority: that is the whole product
 in one call.
+
+## Step 8 — Put a rule on yourself
+
+The tenant's policy is the tenant admin's. Your **own** policy is yours: any
+account can write one, including an ordinary `user`, because it can only take
+access away from you. It runs after the platform and the tenant have answered,
+only for requests your account makes, and only its `deny` rules count.
+
+The package is `account.a_` plus your `account_id` from step 3, dashes as
+underscores:
+
+```http
+POST https://api.instruxi.dev/api/v1/enforcer/me/policy
+Authorization: Bearer $TOKEN
+Content-Type: application/json
+
+{"source":"package account.a_32bb5436_a7bc_4583_9cc5_da7837e93bde\n\nimport rego.v1\n\ndeny contains \"I do not read payments\" if {\n\tinput.action == \"read\"\n\tinput.resource_type == \"payment\"\n}\n"}
+```
+
+```json
+{"success":true,"data":{"version":6,"status":"valid","subject_account_id":"32bb5436-a7bc-4583-9cc5-da7837e93bde"}}
+```
+
+Nothing changes until you switch it on:
+
+```http
+POST https://api.instruxi.dev/api/v1/enforcer/me/policy/6/activate
+Authorization: Bearer $TOKEN
+```
+
+```json
+{"success":true,"data":{"version":6,"status":"active"}}
+```
+
+Now ask step 7's first question again. The tenant's policy still allows anyone
+to read a payment; your own rule refuses it, for you and nobody else:
+
+```json
+{"success":true,"allow":false,"reason":"account policy: I do not read payments"}
+```
+
+The `account policy:` prefix is how you tell your own rule from the tenant's.
+Activation reaches every server within about a second, so a check sent the
+instant it returns can still see the old answer. The tenant's rules keep
+applying underneath: `"action":"write"` is still refused in the tenant's words.
+
+To switch it off, `DELETE /me/policy/active`. Every version is kept:
+`GET /me/policy` lists them, rejected ones included, and activating an earlier
+version rolls back.
+
+**What an account policy cannot do.** It cannot grant: a policy that defines
+`allow` or `declared_types` is refused at submit. It cannot reach anyone else:
+there is no request that names another account. Your tenant's admins can see
+that you have one in force and switch it off, but cannot read its text.
+
+If your agent uses the MCP server, `enforcer_setup_plan` and
+`enforcer_setup_apply` write these for you from rules you approve in plain
+English. For an ordinary account they write your account policy; for a tenant
+admin, the tenant's.
 
 ---
 
@@ -270,7 +337,9 @@ sent and what we refused. Check `status`, not the status code.
 |---|---|---|
 | any call | `401 token_expired` | The step-2 token lasts 15 minutes. Get another. |
 | reading policies | `403 requires tenant read` | Listing or reading policies needs `developer` or `tenant_admin`. `/authz/check` does not. |
-| submitting, activating | `403 requires tenant admin` | Changing policy needs `tenant_admin`. A `user` hits `requires tenant read` first, because the read gate covers the whole route group. |
+| submitting, activating | `403 requires tenant admin` | Changing the **tenant's** policy needs `tenant_admin`. A `user` hits `requires tenant read` first, because the read gate covers the whole route group. For a rule on your own account, use `/me/policy` (step 8), which needs no role. |
+| `validation_error` | ``an account policy may only deny: remove the `allow` rule…`` | Your own policy cannot grant. Keep only `deny` rules; the same applies to `declared_types`. |
+| `validation_error` | ``policy must declare `package account.a_<your account id>`, found `package tenant.t_…` `` | A policy at `/me/policy` is named for your account, not your tenant. The message names the exact package. |
 | `validation_error` | `could not parse: … rego_parse_error: package expected` | `source` must be the Rego text itself, not a placeholder. |
 | `validation_error` | ``policy must declare `package tenant.t_<your tenant id>` `` | The package name is derived from your tenant id. The message names the exact one to use. |
 | `validation_error` | `rego_compile_error: import must not shadow import rego.v1` | Alias the vocabulary: `import data.enforcer.v1 as enforcer`. |
