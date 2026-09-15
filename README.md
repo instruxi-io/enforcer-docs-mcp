@@ -4,7 +4,7 @@
 
 > **Public repo**, no account needed to read docs. Install instructions below are **auth-free**: the package ships as a release tarball on GitHub Releases.
 
-> **Setting up Enforcer with an AI agent?** Start with [SETUP.md](SETUP.md): sign in, mint an API key, connect the MCP server, and watch a tenant policy decide, all against the live sandbox.
+> **Setting up Enforcer with an AI agent?** Start with [SETUP.md](SETUP.md): sign in, mint an API key, connect the MCP server, watch a tenant policy decide, and put a rule on your own account, all against the live sandbox and none of it needing an admin role.
 
 ---
 
