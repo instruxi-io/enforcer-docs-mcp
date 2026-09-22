@@ -29,7 +29,7 @@ Add to your MCP config (`~/Library/Application Support/Claude/claude_desktop_con
       "command": "npx",
       "args": [
         "-y",
-        "https://github.com/instruxi-io/enforcer-docs-mcp/releases/latest/download/instruxi-io-enforcer-docs-mcp.tgz"
+        "https://github.com/instruxi-io/enforcer-docs-mcp/releases/latest/download/enforcer-docs-mcp.tgz"
       ]
     }
   }
@@ -84,7 +84,7 @@ The server defaults to the **dev** Enforcer instance. Override per-session with 
   "mcpServers": {
     "enforcer-docs": {
       "command": "npx",
-      "args": ["-y", "https://github.com/instruxi-io/enforcer-docs-mcp/releases/latest/download/instruxi-io-enforcer-docs-mcp.tgz"],
+      "args": ["-y", "https://github.com/instruxi-io/enforcer-docs-mcp/releases/latest/download/enforcer-docs-mcp.tgz"],
       "env": {
         "ENFORCER_SWAGGER_URL": "https://api.instruxi.dev/api/v1/enforcer/swagger/doc.json"
       }
