@@ -1,7 +1,5 @@
 {
-    "schemes": [
-        "https"
-    ],
+    "schemes": ["https"],
     "swagger": "2.0",
     "info": {
         "description": "Identity and authorization in one system. Enforcer signs users in, holds who they are (tenants, roles, groups), and answers whether an actor may perform an action on a resource, returning the decision, the policy that made it, and the reason. Because the caller is resolved before evaluation, a policy is handed a real accessor object rather than a bare subject id.",
@@ -10654,7 +10652,7 @@
                         }
                     },
                     "409": {
-                        "description": "not_pending — already submitted/paid, no longer declinable",
+                        "description": "not_pending — already submitted/paid, no longer declinable; reward_not_declinable — a payout raised by a service (RWD:, payee is creator), which that service will pay regardless",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
                         }
@@ -10719,6 +10717,12 @@
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "reward_not_recallable — a payout raised by a service (RWD:, payee is creator), which that service will pay regardless",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
                         }
@@ -12525,7 +12529,7 @@
         },
         "/service/fulfillments": {
             "post": {
-                "description": "Service-key only (X-API-Key must be a service key this route trusts; today enforcer-mp-merchant). Creates an OPEN payment request that pays `payee_account_id`: the payee is creator, sender and receiver, and the use case opens it to any same-tenant payer. The body cannot name a different payer or creator. Tenant is `X-Tenant-ID`; the payee must belong to it.",
+                "description": "Service-key only (X-API-Key must be a service key this route trusts; today enforcer-mp-merchant and enforcer-airdrop). Creates an OPEN payment request that pays `payee_account_id`: the payee is creator, sender and receiver, and the use case opens it to any same-tenant payer. The body cannot name a different payer or creator. Tenant is `X-Tenant-ID`; the payee must belong to it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -12661,6 +12665,85 @@
                     },
                     "422": {
                         "description": "refund_exceeds_refundable (carries refundable_uoa)",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/service/fulfillments/{id}/submit": {
+            "post": {
+                "description": "Service-key only (today enforcer-airdrop). Records that the service broadcast the payout for reward fulfillment `id` from its treasury wallet: `pending` → `submitted` with `tx_hash`, then a best-effort settlement attempt from that transaction's receipt (the enforcer-reconcile sweep retries it regardless).\n\n**Reward rows only.** The row must belong to `X-Tenant-ID` (404 otherwise — existence is not revealed across tenants) and its reference must carry the `RWD:` tag (403 `not_a_reward_fulfillment`); a service key cannot stamp a P2P, bill-pay or POS row.\n\n**Idempotent.** A row that already carries this same hash — `submitted`, or `confirmed` because the Routed webhook got there first — answers 200 with the current row. A confirmed row with no hash is stamped with this one. A different hash is 409 `tx_hash_conflict`; an expired/declined/cancelled/failed row is 409 `not_pending`.\n\nSettlement: a route-rail payout confirms from its `Routed(memo)` event as today. A send-rail payout (plain ERC-20 `transfer`) confirms from the Transfer log in this transaction whose token is `request_token`, recipient `receiver_wallet` and value at least `notional_uoa`.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "fulfillments"
+                ],
+                "summary": "Submit a reward fulfillment (service broadcast)",
+                "operationId": "submitServiceFulfillment",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "tenant id",
+                        "name": "X-Tenant-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "reward fulfillment id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "broadcast tx hash",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ServiceSubmitFulfillmentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.FulfillmentResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "bad_request (tenant, id or body) / invalid_tx_hash",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "invalid_service_key",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "not_a_reward_fulfillment",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "fulfillment_not_found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "tx_hash_conflict / not_pending",
                         "schema": {
                             "$ref": "#/definitions/internal_delivery_http_handler.ErrorResponse"
                         }
@@ -21547,6 +21630,16 @@
                 "idempotency_key": {
                     "description": "IdempotencyKey makes a retry return the ORIGINAL refund instead of raising\na second one. Send the proposal id.",
                     "type": "string"
+                }
+            }
+        },
+        "internal_delivery_http_handler.ServiceSubmitFulfillmentRequest": {
+            "type": "object",
+            "properties": {
+                "tx_hash": {
+                    "description": "TxHash is the mined transaction that paid the row: 0x + 64 hex. Case is\nfolded; it is stored lower-case.",
+                    "type": "string",
+                    "example": "0x5c504ed432cb51138bcf09aa5e8a410dd4a1e204ef84bfed1be16dfba1b22060"
                 }
             }
         },
