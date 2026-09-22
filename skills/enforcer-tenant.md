@@ -27,14 +27,24 @@ If the MCP server isn't available, fall back to the live spec at
 
 ## Environments & auth
 
-| Env | Host |
-|-----|------|
-| Dev | `enforcer-v2-dev.instruxi.dev` |
-| Staging | `enforcer-v2-staging.instruxi.dev` |
-| Prod | `enforcer-v2-prod.instruxi.dev` (serves `app.megprimepay.com` et al.) |
+| Cluster | Host | Notes |
+|---------|------|-------|
+| instruxi | `api.instruxi.dev` | live; swagger served |
 
-**Always ask which environment** unless the user is explicit. Prod is live —
-treat every prod write as a confirm-first operation.
+Another cluster has its own enforcer-v3 host; ask the user for it rather than guessing.
+
+The three `enforcer-v2-{dev,staging,prod}.instruxi.dev` hosts this table used to
+list are **not this API**. They still answer, but they run the old enforcer-v2
+service, not v3: a request there gets v2's own 401 (`No authorization token or API
+key provided`) and v2's health format, where v3 answers `Authorization header
+required` and reports `db`/`kv`/`mb` checks with a version (checked 2026-09-22).
+Nothing in this skill applies to them.
+There is one enforcer-v3 deployment per cluster, not a dev/staging/prod ladder on
+one host; "environment" here means **which cluster**, and every cluster is production.
+
+**Always ask which cluster** unless the user is explicit. Every cluster is live —
+treat every write as a confirm-first operation. Clusters can live in separate
+cloud accounts, and a tenant UUID can repeat across them.
 
 Admin tenant endpoints require an **admin-role** credential, sent as either:
 - `Authorization: Bearer <jwt>` (admin-role JWT), or
@@ -43,7 +53,7 @@ Admin tenant endpoints require an **admin-role** credential, sent as either:
 Get tokens/keys per env from the `reference_api_keys` memory. Set up the shell:
 
 ```bash
-HOST=enforcer-v2-prod.instruxi.dev      # pick the right env
+HOST=api.instruxi.dev                   # or your cluster's enforcer-v3 host
 TOKEN=...                               # admin JWT or API key
 AUTH=(-H "Authorization: Bearer $TOKEN") # or: AUTH=(-H "X-API-Key: $TOKEN")
 BASE="https://$HOST/api/v1/enforcer"     # confirm the prefix via get_endpoint
@@ -76,8 +86,7 @@ BASE="https://$HOST/api/v1/enforcer"     # confirm the prefix via get_endpoint
 Two different fields: `app_url` is the whole PWA base (check-in + invite links),
 `payment_link_url` is the payment-CTA base. If the user gives one URL and means
 "the app", set **`app_url`** (and `payment_link_url` to the same if they want the
-payment CTA too). Known prod values: `https://app.megprimepay.com` (MegPrime prod,
-code `privy-cml89r5xo028ql10cg1txr9v5`), `https://pwa.instruxi.dev` (Instruxi).
+payment CTA too). Known prod value: `https://pwa.instruxi.dev` (Instruxi).
 
 ### Update body is tri-state
 
@@ -144,6 +153,49 @@ end.
 - Confirm the **environment** and show a **before→after diff** before any prod write.
 - Touch **only** the fields the user supplied (tri-state PATCH).
 - Validate enums and URL fields up front; strip trailing slashes on URL bases.
-- To deactivate a tenant set status inactive — don't delete (delete cascades and
-  is destructive).
+- Prefer `PATCH {status:"inactive"}` to deactivate. See **Deleting a tenant** below
+  for what `DELETE` actually does — it is NOT the destructive option.
 - Pull the exact endpoint + body from the `enforcer-docs` MCP, not from this file.
+
+## Deleting a tenant
+
+This section used to say "don't delete — delete cascades and is destructive."
+That was **wrong**, and backwards. Verified against enforcer-v3 on 2026-08-21:
+
+**`DELETE /tenants/{id}` is a SOFT delete.** `internal/domain/tenant/tenant.go`
+carries `DeletedAt gorm.DeletedAt`, and `TenantRepository.Delete` is a plain GORM
+`Delete`, so the call issues `UPDATE tenants SET deleted_at = now()`. Nothing
+cascades. Every account, connection, key and audit row survives, orphaned but
+intact, and it is reversible with `UPDATE tenants SET deleted_at = NULL`.
+
+It requires role slug **exactly `admin`** — `authz.Roles()` sets `IsAdmin` only for
+`RoleAdmin`, and the usecase returns `ErrAdminOnly` otherwise. A `tenant_admin`
+credential gets 403, which is easy to misread as the wrong tenant id.
+
+**The destructive option is raw SQL, and only that.** A real
+`DELETE FROM tenants WHERE id = …` cascades across the **20 tables** carrying
+`REFERENCES tenants(id) ON DELETE CASCADE` — accounts, api_keys, audit_events,
+auth_challenges, auth_providers, email_templates, group_types, groups, policies,
+portal_tokens, refresh_tokens, sso_connections, tenant_connections, tenant_invites,
+terms, tickets, verification_providers, verification_sessions,
+wallet_audit_findings, webauthn_sessions. There is no non-cascading FK, so nothing
+blocks it. Take a verified dump first.
+
+**The cascade stops at the v3 database.** Every other service DB (`cybrid`,
+`enforcer_mb`, `enforcer_files`, `enforcer_kanban`, `enforcer_gameboard`,
+`enforcer_checkin`) stores `tenant_id` as a plain UUID with **no foreign key** —
+deliberately. A hard purge leaves all of that behind, orphaned. Count it per
+database and decide explicitly; do not assume one DELETE cleaned up the platform.
+
+**Guard the statement, because the UUID is not unique across clusters.** The same
+tenant id can name a live tenant in another cluster's DB (the same tenant has been
+seen in two clusters' databases at once). Put the guards in the
+WHERE clause so a mismatch is a no-op instead of the wrong deletion:
+
+```sql
+DELETE FROM tenants
+ WHERE id = '<uuid>'
+   AND name = '<expected name>'
+   AND code = '<expected code>'
+   AND current_database() = '<expected db>';
+```

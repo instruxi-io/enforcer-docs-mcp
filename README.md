@@ -10,7 +10,7 @@
 
 ## What is Enforcer?
 
-Enforcer is a multi-tenant backend that provides authentication (passkeys, SIWE, OAuth), a key-value store, file storage (S3 / GCS / Storj), wallet management, and policy authorization. It exposes 200+ HTTP endpoints under 23 tags. See the live OpenAPI spec: https://enforcer-v2-dev.instruxi.dev/swagger/doc.json
+Enforcer is a multi-tenant backend that provides authentication (passkeys, SIWE, OAuth), a key-value store, file storage (S3 / GCS / Storj), wallet management, and policy authorization. It exposes 200+ HTTP endpoints under 23 tags. See the live OpenAPI spec: https://api.instruxi.dev/api/v1/enforcer/swagger/doc.json
 
 This MCP server wraps that spec as tools so AI agents can progressively explore the API surface instead of ingesting the entire document.
 
@@ -86,17 +86,17 @@ The server defaults to the **dev** Enforcer instance. Override per-session with 
       "command": "npx",
       "args": ["-y", "https://github.com/instruxi-io/enforcer-docs-mcp/releases/latest/download/instruxi-io-enforcer-docs-mcp.tgz"],
       "env": {
-        "ENFORCER_SWAGGER_URL": "https://enforcer-v2-prod.instruxi.dev/swagger/doc.json"
+        "ENFORCER_SWAGGER_URL": "https://api.instruxi.dev/api/v1/enforcer/swagger/doc.json"
       }
     }
   }
 }
 ```
 
-Known URLs:
-- `https://enforcer-v2-dev.instruxi.dev/swagger/doc.json` (default)
-- `https://enforcer-v2-staging.instruxi.dev/swagger/doc.json`
-- `https://enforcer-v2-prod.instruxi.dev/swagger/doc.json`
+The default is the enforcer-v3 spec, `https://api.instruxi.dev/api/v1/enforcer/swagger/doc.json`.
+Point `ENFORCER_SWAGGER_URL` at another cluster's `/api/v1/enforcer/swagger/doc.json`
+to document that deployment instead. The `enforcer-v2-*` hosts serve the old v2
+API, not v3; do not use them.
 
 If the live fetch fails, the server falls back to the bundled `swagger.json` snapshot (refreshed on every release).
 
@@ -128,7 +128,7 @@ If the live fetch fails, the server falls back to the bundled `swagger.json` sna
 
 | Var | Default | Purpose |
 |-----|---------|---------|
-| `ENFORCER_SWAGGER_URL` | `https://enforcer-v2-dev.instruxi.dev/swagger/doc.json` | Live spec URL to fetch. |
+| `ENFORCER_SWAGGER_URL` | `https://api.instruxi.dev/api/v1/enforcer/swagger/doc.json` | Live spec URL to fetch. |
 | `ENFORCER_USE_EMBEDDED` | unset | Set to `1` to skip the network fetch and only use the bundled snapshot. |
 
 ---
